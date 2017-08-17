@@ -1,0 +1,8 @@
+{
+  "name": "fn-record",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "description": "Record user actions as replayable dom *(experimental)*"
+}
+  
