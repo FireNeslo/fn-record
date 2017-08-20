@@ -70,10 +70,20 @@ function create(node, document, parent=document) {
   return context
 }
 
-function applyChanges({changes}, document) {
+function relative(change, target, cursor) {
+  const rect = target.getBoundingClientRect()
+  const cur = cursor.getBoundingClientRect()
+  return {
+    x: (rect.x + change.value.x * rect.width) - (cur.width / 2),
+    y: (rect.y + change.value.y * rect.height) - (cur.height / 2)
+  }
+}
+
+function applyChanges({changes, cursor}, document) {
 
   for(const change of changes) {
     const target = NODES[change.target]
+    let pos, rect
     switch(change.type) {
       case "attributes":
         target.setAttribute(change.name, change.value)
@@ -84,11 +94,37 @@ function applyChanges({changes}, document) {
           create(child, document, target)
         }
         for(const remove of value.removed || []) {
-          target.removeChild(NODES[remove])
+          if(NODES[remove]) NODES[remove].remove()
         }
       break;
       case "characterData":
         target.nodeValue = change.value
+      break;
+      case "pointerdown":
+        rect = target.getBoundingClientRect()
+        pos = relative(change, target, cursor)
+
+        Object.assign(cursor.style, {
+          border: 'thin solid red',
+          transform: `translate(${pos.x}px, ${pos.y}px) scale(1)`
+        })
+      break;
+      case "pointerup":
+        rect = target.getBoundingClientRect()
+        pos = relative(change, target, cursor)
+
+        Object.assign(cursor.style, {
+          border: 'none',
+          transform: `translate(${pos.x}px, ${pos.y}px) scale(1)`
+        })
+      break;
+      case "move":
+        rect = target.getBoundingClientRect()
+        pos = relative(change, target, cursor)
+
+        Object.assign(cursor.style, {
+          transform: `translate(${pos.x}px, ${pos.y}px) scale(1)`
+        })
       break;
       default:
         console.log(change)
@@ -98,30 +134,58 @@ function applyChanges({changes}, document) {
 }
 
 
-module.exports = function play(recording) {
+module.exports = function play(recording, {speed = 1}={}) {
   const context = document.createElement('iframe')
+  const cursor = document.createElement('span')
 
-  context.setAttribute('style', 'width: 100%; height: 100vh;')
+  cursor.textContent = 'x'
 
-  context.onload = function() {
-    create(recording.tree, context.contentDocument)
+  Object.assign(cursor.style, {
+    color: 'red',
+    border: 'none',
+    borderRadius: '50%',
+    fontWeight: '800',
+    position: 'absolute',
+    transition: `transform linear ${150 / speed | 0}ms`,
+    top: 0,
+    left: 0
+  })
 
-    const start = performance.now()
+  Object.assign(context.style, {
+    width: '100%',
+    height: '100%',
+    position: 'fixed',
+    top: 0,
+    left: 0
+  })
 
-    requestAnimationFrame(function loop() {
-      if(recording.changes.length) {
+  return new Promise(resolve => {
+    let index = 0
+
+    context.onload = function() {
+      create(recording.tree, context.contentDocument)
+
+      context.contentDocument.body.appendChild(cursor)
+
+      const start = performance.now()
+
+      requestAnimationFrame(function loop() {
+        if(!recording.changes[index]) {
+          context.parentNode.removeChild(context)
+          return resolve()
+        }
+
+        const time = (performance.now() - start) * speed
+        const change = recording.changes[index]
+
+        if(change.time <= time) {
+          const {changes} = recording.changes[index++]
+          applyChanges({changes, cursor}, context.contentDocument)
+        }
+
         requestAnimationFrame(loop)
-      } else {
-        return
-      }
-      const time = performance.now() - start
-      const change = recording.changes[0]
-
-      if(change.time <= time) {
-        applyChanges(recording.changes.shift(), context.contentDocument)
-      }
-    })
-  }
-
-  document.body.appendChild(context)
+      })
+    }
+    document.body.appendChild(context)
+  })
 }
