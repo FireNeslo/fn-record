@@ -1,5 +1,4 @@
-const record = require('../record')
-const play = require('../play')
+const {play, record} = require('..')
 
 const tag = document.createElement.bind(document)
 const el = (name, props) => Object.assign(tag(name), props)
