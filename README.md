@@ -40,3 +40,18 @@ setTimeout(function later() {
 <li>Module: <code>require('fn-record')</code></li></ul>
 
 <!-- /INSTALL -->
+
+
+<!-- LICENSE/ -->
+
+<h2>License</h2>
+
+Unless stated otherwise all works are:
+
+<ul><li>Copyright &copy; Øystein Ø. Olsen</li></ul>
+
+and licensed under:
+
+<ul><li><a href="http://spdx.org/licenses/MIT.html">MIT License</a></li></ul>
+
+<!-- /LICENSE -->

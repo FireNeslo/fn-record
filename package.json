@@ -5,12 +5,28 @@
   "license": "MIT",
   "description": "Record user actions as replayable dom *(experimental)*",
   "scripts": {
-    "compile": "projectz compile"
+    "readme": "projectz compile"
   },
   "devDependencies": {
     "projectz": "^1.4.0"
   },
-  "author": "",
+  "author": "Øystein Ø. Olsen",
   "maintainers": [],
-  "contributors": []
+  "contributors": [
+    "Øystein Ø. Olsen (https://github.com/FireNeslo)"
+  ],
+  "dependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/FireNeslo/fn-record.git"
+  },
+  "keywords": [
+    "js",
+    "dom",
+    "replay"
+  ],
+  "bugs": {
+    "url": "https://github.com/FireNeslo/fn-record/issues"
+  },
+  "homepage": "https://github.com/FireNeslo/fn-record#readme"
 }
