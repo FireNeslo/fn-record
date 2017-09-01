@@ -36,13 +36,20 @@ function createBody(node, document, parent) {
   return apply(node, document, document.body)
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg"
 
 function createElement(node, document, parent) {
-  const dom = apply(node, document, document.createElement(node.name))
+  let target = null
 
-  parent.appendChild(dom)
+  if(node.name === 'svg' || parent.namespaceURI.includes('svg')) {
+    target = document.createElementNS(SVG_NS, node.name)
+  } else {
+    target = document.createElement(node.name)
+  }
 
-  return dom
+  parent.appendChild(apply(node, document, target))
+
+  return target
 }
 function createText(node, document, parent) {
   const dom = document.createTextNode(node.content)
@@ -79,7 +86,8 @@ function relative(change, target, cursor) {
   }
 }
 
-function applyChanges({changes, cursor}, document) {
+
+function applyChanges({changes, cursor, keys}, document) {
 
   for(const change of changes) {
     const target = NODES[change.target]
@@ -126,6 +134,12 @@ function applyChanges({changes, cursor}, document) {
           transform: `translate(${pos.x}px, ${pos.y}px) scale(1)`
         })
       break;
+      case "keydown":
+        keys.press(change.value)
+      break;
+      case "keyup":
+        keys.release(change.value)
+      break;
       default:
         console.log(change)
       break;
@@ -133,9 +147,43 @@ function applyChanges({changes, cursor}, document) {
   }
 }
 
+class Keys {
+  constructor() {
+    this.$pad = document.createElement('div')
+    this.keys = new Set()
+    Object.assign(this.$pad.style, {
+      position: 'fixed',
+      bottom: 0,
+      right: 0
+    })
+  }
+  press(key) {
+    this.render()
+    return this.keys.add(key), this
+  }
+  release(key) {
+    this.render()
+    return this.keys.delete(key), this
+  }
+  render() {
+    if(this.rendering) return
+    this.rendering = true
+    this.$pad.innerHTML = ''
+    requestAnimationFrame(delta => {
 
-module.exports = function play(recording, {speed = 1}={}) {
-  const context = document.createElement('iframe')
+      for(const key of this.keys) {
+        const $key = document.createElement('button')
+
+        $key.textContent = key
+        this.$pad.appendChild($key)
+      }
+
+      this.rendering = false
+    })
+  }
+}
+
+function createCursor(speed) {
   const cursor = document.createElement('span')
 
   cursor.textContent = 'x'
@@ -151,21 +199,30 @@ module.exports = function play(recording, {speed = 1}={}) {
     left: 0
   })
 
+  return cursor
+}
+
+
+module.exports = function play(recording, {speed = 1}={}) {
+  const context = document.createElement('iframe')
+
   Object.assign(context.style, {
-    width: '100%',
-    height: '100%',
-    position: 'fixed',
-    top: 0,
-    left: 0
+    width: recording.width + 'px',
+    height:  recording.height + 'px'
   })
 
   return new Promise(resolve => {
     let index = 0
 
     context.onload = function() {
+      const cursor = createCursor(speed)
+      const keys = new Keys()
+      const $body = context.contentDocument.body
+
       create(recording.tree, context.contentDocument)
 
-      context.contentDocument.body.appendChild(cursor)
+      $body.appendChild(cursor)
+      $body.appendChild(keys.$pad)
 
       const start = performance.now()
 
@@ -180,7 +237,7 @@ module.exports = function play(recording, {speed = 1}={}) {
 
         if(change.time <= time) {
           const {changes} = recording.changes[index++]
-          applyChanges({changes, cursor}, context.contentDocument)
+          applyChanges({changes, cursor, keys}, context.contentDocument)
         }
 
         requestAnimationFrame(loop)

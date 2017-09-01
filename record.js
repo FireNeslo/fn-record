@@ -163,7 +163,20 @@ function events(start, root) {
     events.push([event, listener])
   }
 
+  for(const event of ['keydown', 'keyup']) {
+    root.addEventListener(event, listener = current => {
+      if(!(current.ctrlKey || current.metaKey || current.altKey)) return
 
+      recording.push({
+        time: performance.now() - start,
+        changes: [{
+          type: event,
+          value: current.key
+        }]
+      })
+    })
+    events.push([event, listener])
+  }
 
   return ( ) => {
     for(const [event, listener] of events) {
@@ -197,6 +210,11 @@ module.exports = function record(options={}) {
     for(const destroy of listeners) destroy()
     recording = null
     start = 0
-    return { tree, changes }
+    return {
+      tree,
+      changes,
+      width: innerWidth,
+      height: innerHeight
+    }
   }
 }
