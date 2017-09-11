@@ -41,7 +41,7 @@ const SVG_NS = "http://www.w3.org/2000/svg"
 function createElement(node, document, parent) {
   let target = null
 
-  if(node.name === 'svg' || parent.namespaceURI.includes('svg')) {
+  if(node.name === 'svg' || (parent.namespaceURI||'').includes('svg')) {
     target = document.createElementNS(SVG_NS, node.name)
   } else {
     target = document.createElement(node.name)
@@ -81,8 +81,8 @@ function relative(change, target, cursor) {
   const rect = target.getBoundingClientRect()
   const cur = cursor.getBoundingClientRect()
   return {
-    x: (rect.x + change.value.x * rect.width) - (cur.width / 2),
-    y: (rect.y + change.value.y * rect.height) - (cur.height / 2)
+    x: (rect.left + change.value.x * rect.width) - (cur.width / 2),
+    y: (rect.top + change.value.y * rect.height) - (cur.height / 2)
   }
 }
 
@@ -92,6 +92,9 @@ function applyChanges({changes, cursor, keys}, document) {
   for(const change of changes) {
     const target = NODES[change.target]
     let pos, rect
+
+    if(!target) return
+
     switch(change.type) {
       case "attributes":
         target.setAttribute(change.name, change.value)
@@ -203,46 +206,124 @@ function createCursor(speed) {
 }
 
 
-module.exports = function play(recording, {speed = 1}={}) {
+function iframe() {
   const context = document.createElement('iframe')
 
   Object.assign(context.style, {
-    width: recording.width + 'px',
-    height:  recording.height + 'px'
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    width:  '100%',
+    height:  '100%',
+    border: 'thin solid green'
   })
 
-  return new Promise(resolve => {
-    let index = 0
+  return context
+}
 
-    context.onload = function() {
-      const cursor = createCursor(speed)
-      const keys = new Keys()
-      const $body = context.contentDocument.body
 
-      create(recording.tree, context.contentDocument)
 
-      $body.appendChild(cursor)
-      $body.appendChild(keys.$pad)
+class Playback {
+  constructor(recording, {speed=1, context=iframe()}={}) {
+    this.context = context
+    this.recording = recording
+    this.onProgress = []
+    this.speed = speed
+  }
 
-      const start = performance.now()
+  play(from=0) {
 
-      requestAnimationFrame(function loop() {
-        if(!recording.changes[index]) {
-          context.parentNode.removeChild(context)
-          return resolve()
-        }
+    const {recording, context, speed, onProgress} = this
+    const self = this
 
-        const time = (performance.now() - start) * speed
-        const change = recording.changes[index]
+    return this.promise = new Promise(resolve => {
+      function replay() {
+        let {index, cursor, keys} = self.seek(from)
+        const start = (index - 1) >= 0 ? recording.changes[index-1].time : 0
+        const end = recording.changes[recording.changes.length-1].time
 
-        if(change.time <= time) {
-          const {changes} = recording.changes[index++]
-          applyChanges({changes, cursor, keys}, context.contentDocument)
-        }
+        const startTime = Date.now()
 
-        requestAnimationFrame(loop)
-      })
+        requestAnimationFrame(function loop() {
+          const {changes, time} = recording.changes[index]
+
+          const delta = (Date.now() - startTime) * speed
+
+          if((delta+start) >= time) {
+            index += 1
+            applyChanges({changes, cursor, keys}, context.contentDocument)
+          }
+          for(const callback of onProgress) {
+            callback((delta + start) / end)
+          }
+          if(recording.changes[index]) {
+            requestAnimationFrame(loop)
+          } else {
+            resolve()
+          }
+        })
+      }
+      if(context.contentDocument) {
+        replay()
+      } else{
+        context.addEventListener('load',replay)
+      }
+
+      if(!context.parentNode) document.body.appendChild(context)
+    })
+  }
+
+  seek(from=0) {
+    const {recording, context, speed} = this
+
+    context.contentDocument.body.innerHTML = ''
+    context.contentDocument.head.innerHTML = ''
+
+    context.style.height = `${recording.height}px`
+    context.style.width = `${recording.width}px`
+
+
+    const cursor = this.cursor = createCursor(speed)
+    const keys = this.keys = new Keys()
+    const $body = context.contentDocument.body
+
+    create(recording.tree, context.contentDocument)
+
+    $body.appendChild(cursor)
+    $body.appendChild(keys.$pad)
+
+    const end = recording.changes[recording.changes.length-1].time
+    const time = end * from
+
+
+    for(let index = 0; index < recording.changes.length; index++) {
+      const change = recording.changes[index]
+      const {changes} = change
+
+      if(change.time >= time) return {index, cursor, keys}
+
+      applyChanges({changes, cursor, keys}, context.contentDocument)
     }
-    document.body.appendChild(context)
-  })
+    return {index: 0, cursor, keys}
+  }
+  then(cb, eb, pb) {
+    if(!this.promise) this.play()
+    if(pb) this.onProgress.push(pb)
+    return this.promise.then(cb, eb)
+  }
+
+  progress(pb) {
+    if(pb) this.onProgress.push(pb)
+    return this
+  }
+
+  catch(eb) {
+    return this.then(null, eb)
+  }
+
+}
+
+
+module.exports = function play(recording, {speed=1, context=iframe()}={}) {
+  return new Playback(recording, {speed, context})
 }

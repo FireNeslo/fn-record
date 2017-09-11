@@ -111,30 +111,42 @@ function debounce(time, callback) {
 }
 
 function relative(current) {
+  if(!(current.target && current.target.getBoundingClientRect)) return
+
   const rect = current.target.getBoundingClientRect()
 
-  return {
-    x: (current.clientX - rect.x) / rect.width,
-    y: (current.clientY - rect.y) / rect.height
-  }
+  const x = Math.min((current.clientX - rect.left) / rect.width, 1)
+  const y = Math.min((current.clientY - rect.top) / rect.height, 1)
+
+
+  console.log({x, y})
+
+  return {x, y}
 }
 
 function events(start, root) {
   var listener = null
   const events = []
 
-  root.addEventListener('mousemove', listener = debounce(150, current => {
+  root.addEventListener('mousemove', listener = current => {
+    const target = IDENTITY.get(current.target)
+    const value = relative(current)
+
+    console.log(value)
+
+    if(!recording) return
+
     recording.push({
       time: performance.now() - start,
       changes: [{
         type: 'move',
-        target: IDENTITY.get(current.target),
-        value: relative(current)
+        target: target,
+        value: value
       }]
     })
-  }))
+  })
 
-  events.push(['move', listener])
+  events.push(['mousemove', listener])
 
   for(const event of ['touchstart', 'mousedown']) {
     root.addEventListener(event, listener = current => {
@@ -206,6 +218,10 @@ module.exports = function record(options={}) {
 
 
   return function stop() {
+    recording.push({
+      time: performance.now() - start,
+      changes: []
+    })
     observer.disconnect();
     for(const destroy of listeners) destroy()
     recording = null
