@@ -129,10 +129,10 @@ function events(start, root) {
   const events = []
 
   root.addEventListener('mousemove', listener = current => {
+    current.stopPropagation()
+
     const target = IDENTITY.get(current.target)
     const value = relative(current)
-
-    console.log(value)
 
     if(!recording) return
 
@@ -149,7 +149,9 @@ function events(start, root) {
   events.push(['mousemove', listener])
 
   for(const event of ['touchstart', 'mousedown']) {
-    root.addEventListener(event, listener = current => {
+    root.addEventListener(event, listener = debounce(100, current => {
+      current.stopPropagation()
+
       recording.push({
         time: performance.now() - start,
         changes: [{
@@ -158,11 +160,13 @@ function events(start, root) {
           value: relative(current)
         }]
       })
-    })
+    }))
     events.push([event, listener])
   }
   for(const event of ['touchend', 'touchcancel', 'mouseup']) {
     root.addEventListener(event, listener = current => {
+      current.stopPropagation()
+
       recording.push({
         time: performance.now() - start,
         changes: [{

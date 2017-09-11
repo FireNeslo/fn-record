@@ -274,14 +274,18 @@ class Playback {
   }
 
   seek(from=0) {
+    for(const key in NODES) {
+      delete NODES[key]
+    }
     const {recording, context, speed} = this
 
-    context.contentDocument.body.innerHTML = ''
-    context.contentDocument.head.innerHTML = ''
+    const doc = context.contentDocument
 
-    context.style.height = `${recording.height}px`
+    doc.body.innerHTML = ''
+    doc.head.innerHTML = ''
+
     context.style.width = `${recording.width}px`
-
+    context.style.height = `${recording.height}px`
 
     const cursor = this.cursor = createCursor(speed)
     const keys = this.keys = new Keys()
