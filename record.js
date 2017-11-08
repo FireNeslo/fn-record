@@ -110,10 +110,8 @@ function debounce(time, callback) {
   }
 }
 
-function relative(current) {
-  if(!(current.target && current.target.getBoundingClientRect)) return
-
-  const rect = current.target.getBoundingClientRect()
+function relative(current, node) {
+  const rect = node.getBoundingClientRect()
 
   const x = Math.min((current.clientX - rect.left) / rect.width, 1)
   const y = Math.min((current.clientY - rect.top) / rect.height, 1)
@@ -128,11 +126,23 @@ function events(start, root) {
   var listener = null
   const events = []
 
-  root.addEventListener('mousemove', listener = current => {
+  function wrap(cb) {
+    return function(event) {
+      if(event.composedPath) {
+        const path = event.composedPath()
+        event.composedPath = () => path
+      }
+      return cb(event)
+    }
+  }
+
+  root.addEventListener('mousemove', listener = wrap(debounce(100, current => {
+    const node = current.composedPath()[0]
+    if(!node) return
     current.stopPropagation()
 
-    const target = IDENTITY.get(current.target)
-    const value = relative(current)
+    const target = IDENTITY.get(node)
+    const value = relative(current, node)
 
     if(!recording) return
 
@@ -144,35 +154,45 @@ function events(start, root) {
         value: value
       }]
     })
-  })
+  })))
 
   events.push(['mousemove', listener])
 
   for(const event of ['touchstart', 'mousedown']) {
-    root.addEventListener(event, listener = debounce(100, current => {
+    root.addEventListener(event, listener = current => {
+      const node = current.composedPath()[0]
+      if(!node) return
       current.stopPropagation()
+
+      const target = IDENTITY.get(node)
+      const value = relative(current, node)
 
       recording.push({
         time: performance.now() - start,
         changes: [{
           type: 'pointerdown',
           target: IDENTITY.get(current.target),
-          value: relative(current)
+          value: value
         }]
       })
-    }))
+    })
     events.push([event, listener])
   }
   for(const event of ['touchend', 'touchcancel', 'mouseup']) {
     root.addEventListener(event, listener = current => {
+      const node = current.composedPath()[0]
+      if(!node) return
       current.stopPropagation()
+
+      const target = IDENTITY.get(node)
+      const value = relative(current, node)
 
       recording.push({
         time: performance.now() - start,
         changes: [{
           type: 'pointerup',
           target: IDENTITY.get(current.target),
-          value: relative(current)
+          value: relative(current, node)
         }]
       })
     })
@@ -234,7 +254,11 @@ module.exports = function record(options={}) {
       tree,
       changes,
       width: innerWidth,
-      height: innerHeight
+      height: innerHeight,
+      document: {
+        height: document.documentElement.offsetHeight,
+        width: document.documentElement.offsetWidth
+      }
     }
   }
 }

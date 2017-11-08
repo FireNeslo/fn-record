@@ -225,13 +225,21 @@ function iframe() {
 
 class Playback {
   constructor(recording, {speed=1, context=iframe()}={}) {
+    this.stopped = true
     this.context = context
     this.recording = recording
     this.onProgress = []
     this.speed = speed
   }
 
+
+  stop() {
+    this.stopped = true
+    return this
+  }
+
   play(from=0) {
+    this.stopped = false
 
     const {recording, context, speed, onProgress} = this
     const self = this
@@ -256,10 +264,10 @@ class Playback {
           for(const callback of onProgress) {
             callback((delta + start) / end)
           }
-          if(recording.changes[index]) {
+          if(recording.changes[index] && !self.stopped) {
             requestAnimationFrame(loop)
           } else {
-            resolve()
+            resolve((delta + start) / end)
           }
         })
       }
@@ -283,6 +291,9 @@ class Playback {
 
     doc.body.innerHTML = ''
     doc.head.innerHTML = ''
+
+    doc.documentElement.width = `${recording.document.width}px`
+    doc.documentElement.style.height = `${recording.document.height}px`
 
     context.style.width = `${recording.width}px`
     context.style.height = `${recording.height}px`
