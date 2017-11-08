@@ -1,27 +1,11 @@
 const { create, render, NODES } = require('./lib/render')
+
 const ACTIONS = require('./lib/actions')
+const createContext = require('./lib/context')
+
 const Keys = require('./lib/ui/keys')
 const Cursor = require('./lib/ui/cursor')
 const Controls = require('./lib/ui/controls')
-
-function createContext() {
-  const content = `<!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="X-UA-Compatible" content="ie=edge">
-      <title>Loading player...</title>
-    </head>
-    <body>
-    </body>
-  </html>`
-
-  const file = new Blob([content], { type: 'text/html' })
-
-  return window.open(URL.createObjectURL(file))
-}
-
 
 function add(target, key, value) {
   if(!target[key]) target[key] = []
@@ -29,24 +13,31 @@ function add(target, key, value) {
 }
 
 class Playback {
-  constructor(recording, { plugins = [ Keys, Cursor, Controls ] }) {
+  constructor(recording, { type, context, plugins }) {
+    if(!plugins) plugins = [ Keys, Cursor, Controls ]
+
+    this.plugins = {}
     this.stopped = true
-    this.context = createContext()
+    this.context = context || createContext(type, recording)
     this.recording = recording
     this.onProgress = []
     this.speed = 1
-    this.context.addEventListener('load', event => {
+    if(this.context.document) {
+      this.context.addEventListener('load', event => {
+        this.plugins = this.createPlugins(plugins)
+      })
+    } else {
       if(!this.plugins) {
         this.plugins = this.createPlugins(plugins)
       }
-    })
+    }
   }
 
   get document() {
     return this.context.document
   }
   get window() {
-    return this.window
+    return this.context
   }
   createPlugins(PLUGINS) {
     const plugins = {}
@@ -74,7 +65,7 @@ class Playback {
     return this
   }
 
-  play(from=0, { speed = 1 } = {}) {
+  play(from=0) {
     this.stopped = false
 
     const {recording, context, onProgress} = this
@@ -92,7 +83,7 @@ class Playback {
         raf(function loop() {
           const {changes, time} = recording.changes[index]
 
-          const delta = (Date.now() - startTime) * speed
+          const delta = (Date.now() - startTime) * self.speed
 
           if((delta+start) >= time) {
             index += 1
@@ -152,9 +143,7 @@ class Playback {
     return { index: 0, plugins }
   }
   then(cb, eb, pb) {
-    if(!this.promise) this.play()
-    if(pb) this.onProgress.push(pb)
-    return this.promise.then(cb, eb)
+    return Promise.resolve(this.context)
   }
 
   progress(pb) {
