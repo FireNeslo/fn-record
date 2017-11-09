@@ -13,7 +13,7 @@ function add(target, key, value) {
 }
 
 class Playback {
-  constructor(recording, { type, context, plugins }) {
+  constructor(recording, { type, context, plugins }={}) {
     if(!plugins) plugins = [ Keys, Cursor, Controls ]
 
     this.plugins = {}
