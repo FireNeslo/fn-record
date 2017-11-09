@@ -22,7 +22,7 @@ const stop = record()
 
 setTimeout(function later() {
 
-  // serilizable json recording
+  // serializable json recording
   const recording = stop()
 
 
