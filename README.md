@@ -35,11 +35,14 @@ setTimeout(function later() {
 
 <h2>Install</h2>
 
-<a href="https://npmjs.com" title="npm is a package manager for javascript"><h3>NPM</h3></a><ul>
+<a href="https://npmjs.com" title="npm is a package manager for javascript"><h3>npm</h3></a>
+<ul>
 <li>Install: <code>npm install --save fn-record</code></li>
-<li>Module: <code>require('fn-record')</code></li></ul>
+<li>Require: <code>require('fn-record')</code></li>
+</ul>
 
 <!-- /INSTALL -->
+
 
 ## API
 
