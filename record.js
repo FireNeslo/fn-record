@@ -116,9 +116,6 @@ function relative(current, node) {
   const x = Math.min((current.clientX - rect.left) / rect.width, 1)
   const y = Math.min((current.clientY - rect.top) / rect.height, 1)
 
-
-  console.log({x, y})
-
   return {x, y}
 }
 
@@ -136,7 +133,7 @@ function events(start, root) {
     }
   }
 
-  root.addEventListener('mousemove', listener = wrap(debounce(100, current => {
+  root.addEventListener('mousemove', listener = wrap(debounce(75, current => {
     const node = current.composedPath()[0]
     if(!node) return
     current.stopPropagation()
