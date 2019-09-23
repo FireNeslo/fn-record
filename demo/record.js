@@ -7,7 +7,17 @@ const append = (parent, child) => (parent.appendChild(child), parent)
 const list =   (parent, children=[]) => children.reduce(append, parent)
 const h = (name, props, children) => list(el(name, props), children)
 
-const btn = txt => h('button', {}, [ text(txt) ])
+const buttonClick = {
+  onclick(event) {
+    if(event.target.hasAttribute('toggle')) {
+      event.target.removeAttribute('toggle')
+    } else {
+      event.target.setAttribute('toggle', '')
+    }
+  }
+}
+
+const btn = txt => h('button', buttonClick, [ text(txt) ])
 const items = Array.from({ length: 50 })
 
 
@@ -17,6 +27,10 @@ list(document.head, [
       main {
         display: grid;
         grid-template-columns: repeat(10, 1fr);
+      }
+      button[toggle] {
+        background-color: blue;
+        color: white;
       }
     `)
   ])
